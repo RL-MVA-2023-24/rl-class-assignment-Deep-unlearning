@@ -2,11 +2,12 @@ from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
 import torch
 import torch.nn as nn
-# import tqdm 
+import tqdm 
 import random
 import numpy as np
 from copy import deepcopy
 import os
+from evaluate import evaluate_HIV, evaluate_HIV_population
 
 env = TimeLimit(
     env=HIVPatient(domain_randomization=True), max_episode_steps=200
@@ -42,21 +43,32 @@ def greedy_action(network, state):
         return torch.argmax(Q).item()
 
 
-class MLP(torch.nn.Module):
-    def __init__(self, state_dim, nb_actions):
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class MLP(nn.Module):
+    def __init__(self, state_dim, hidden_dim, nb_actions):
         super(MLP, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, 128)
-        self.fc4 = nn.Linear(128, 128)
-        self.fc5 = nn.Linear(128, nb_actions)
+        self.fc1 = nn.Linear(state_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc4 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc5 = nn.Linear(hidden_dim, hidden_dim)
+        self.dropout = nn.Dropout(p=0.05)  # Adjust dropout rate as needed
+        self.activation = nn.ReLU()
+        self.fc6 = nn.Linear(hidden_dim, nb_actions)
+
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x)) + x
-        x = torch.relu(self.fc3(x)) + x
-        x = torch.relu(self.fc4(x)) + x
-        x = self.fc5(x)
+        x = self.activation(self.fc1(x))
+        x = self.activation(self.fc2(x)) + x
+        x = self.activation(self.fc3(x)) + x
+        x = self.activation(self.fc4(x)) + x
+        x = self.activation(self.fc5(x)) + x
+        x = self.dropout(x)  # Apply dropout
+        x = self.fc6(x)
         return x
+
 
 class DQN_Agent:
     def __init__(self, config, model):
@@ -136,6 +148,8 @@ class DQN_Agent:
         epsilon = self.epsilon_max
         step = 0
         best_return = 0
+        best_score_agent = 0
+        best_score_agent_dr = 0
         while episode < max_episode:
             # update epsilon
             if step > self.epsilon_delay:
@@ -168,32 +182,38 @@ class DQN_Agent:
             if done or trunc:
                 episode += 1
                 # Monitoring
-                if self.monitoring_nb_trials>0 and episode % self.monitor_every == 0: 
-                    MC_dr, MC_tr = self.MC_eval(env, self.monitoring_nb_trials)    # NEW NEW NEW
-                    V0 = self.V_initial_state(env, self.monitoring_nb_trials)   # NEW NEW NEW
-                    MC_avg_total_reward.append(MC_tr)   # NEW NEW NEW
-                    MC_avg_discounted_reward.append(MC_dr)   # NEW NEW NEW
-                    V_init_state.append(V0)   # NEW NEW NEW
-                    episode_return.append(episode_cum_reward)   # NEW NEW NEW
-                    print("Episode ", '{:2d}'.format(episode), 
-                          ", epsilon ", '{:6.2f}'.format(epsilon), 
-                          ", memory size ", '{:4d}'.format(len(self.memory)), 
-                          ", ep return ", '{:6.0f}'.format(episode_cum_reward), 
-                          ", MC tot ", '{:6.0f}'.format(MC_tr),
-                          ", MC disc ", '{:6.0f}'.format(MC_dr),
-                          ", V0 ", '{:6.0f}'.format(V0),
-                          sep='')
-                    if MC_tr > best_return:
-                        best_return = MC_tr
-                        self.save(self.save_path)
-                        print("Best return is updated to ", best_return)
-                else:
-                    episode_return.append(episode_cum_reward)
-                    print("Episode ", '{:2d}'.format(episode), 
-                          ", epsilon ", '{:6.2f}'.format(epsilon), 
-                          ", memory size ", '{:4d}'.format(len(self.memory)), 
-                          ", ep return ", '{:6.0f}'.format(episode_cum_reward), 
-                          sep='')
+
+                MC_dr, MC_tr = self.MC_eval(env, self.monitoring_nb_trials)    # NEW NEW NEW
+                V0 = self.V_initial_state(env, self.monitoring_nb_trials)   # NEW NEW NEW
+                MC_avg_total_reward.append(MC_tr)   # NEW NEW NEW
+                # MC_avg_discounted_reward.append(MC_dr)   # NEW NEW NEW
+                V_init_state.append(V0)   # NEW NEW NEW
+                episode_return.append(episode_cum_reward)   # NEW NEW NEW
+                score_agent = evaluate_HIV(agent=self, nb_episode=1)
+                # score_agent_dr = evaluate_HIV_population(agent=self, nb_episode=15)
+                print("Episode ", '{:2d}'.format(episode), 
+                        ", epsilon ", '{:6.4f}'.format(epsilon), 
+                        ", memory size ", '{:4d}'.format(len(self.memory)), 
+                        ", score agent ", '{:6.2f}'.format(score_agent),
+                        # ", score agent dr ", '{:6.2f}'.format(score_agent_dr),
+                        # ", ep return ", '{:6.0f}'.format(episode_cum_reward), 
+                        # ", MC tot ", '{:6.0f}'.format(MC_tr),
+                        # ", MC disc ", '{:6.0f}'.format(MC_dr),
+                        # ", V0 ", '{:6.0f}'.format(V0),
+                        sep='')
+                # Save if the score_agent is better
+                if score_agent > best_score_agent:
+                    best_score_agent = score_agent
+                    self.save(self.save_path)
+                    print("Best agent saved", 
+                          " score agent ", '{:6.2f}'.format(score_agent), sep='')
+                # else:
+                #     episode_return.append(episode_cum_reward)
+                #     print("Episode ", '{:2d}'.format(episode), 
+                #           ", epsilon ", '{:6.2f}'.format(epsilon), 
+                #           ", memory size ", '{:4d}'.format(len(self.memory)), 
+                #           ", ep return ", '{:6.0f}'.format(episode_cum_reward), 
+                #           sep='')
 
                 
                 state, _ = env.reset()
@@ -215,26 +235,25 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 state_dim = env.observation_space.shape[0]
 nb_actions = env.action_space.n
 
-model = MLP(state_dim, nb_actions).to(device)
+model = MLP(state_dim, 512, nb_actions).to(device)
 
 config = {'nb_actions': nb_actions,
         'learning_rate': 0.001,
-        'gamma': 0.98,
+        'gamma': 0.99,
         'buffer_size': 1000000,
         'epsilon_min': 0.01,
         'epsilon_max': 1.,
         'epsilon_decay_period': 10000,
-        'epsilon_delay_decay': 400,
+        'epsilon_delay_decay': 500,
         'batch_size': 512,
         'gradient_steps': 2,
         'update_target_strategy': 'ema', # or 'replace'
         'update_target_freq': 600,
         'update_target_tau': 0.001,
         'criterion': torch.nn.SmoothL1Loss(),
-        'monitoring_nb_trials': 50, 
-        'monitor_every': 50, 
-        'save_path': './dqn_agent.pth',
-        'save_every': 50}
+        'monitoring_nb_trials': 1, 
+        'monitor_every': 1, 
+        'save_path': './dqn_agent.pth'}
 
 agent = DQN_Agent(config, model)
 
@@ -253,7 +272,7 @@ class ProjectAgent:
 
 def fill_buffer(env, agent, buffer_size):
     state, _ = env.reset()
-    # progress_bar = tqdm.tqdm(total=buffer_size, desc="Filling the replay buffer")
+    progress_bar = tqdm.tqdm(total=buffer_size, desc="Filling the replay buffer")
     for _ in range(buffer_size):
         action = agent.act(state)
         next_state, reward, done, trunc, _ = env.step(action)
@@ -262,8 +281,8 @@ def fill_buffer(env, agent, buffer_size):
             state, _ = env.reset()
         else:
             state = next_state
-        # progress_bar.update(1)
-    # progress_bar.close()
+        progress_bar.update(1)
+    progress_bar.close()
 
 if __name__ == "__main__":
     # Set the seed
@@ -277,7 +296,7 @@ if __name__ == "__main__":
     # Set the device
 
     # Fill the buffer
-    fill_buffer(env, agent, 5000)
+    fill_buffer(env, agent, 1000)
 
     ep_length, disc_rewards, tot_rewards, V0 = agent.train(env, 500)
     agent.save("./dqn_agent.pth")

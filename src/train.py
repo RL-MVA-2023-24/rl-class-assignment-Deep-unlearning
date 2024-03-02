@@ -2,7 +2,7 @@ from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
 import torch
 import torch.nn as nn
-import tqdm 
+# import tqdm 
 import random
 import numpy as np
 from copy import deepcopy
@@ -253,7 +253,7 @@ class ProjectAgent:
 
 def fill_buffer(env, agent, buffer_size):
     state, _ = env.reset()
-    progress_bar = tqdm.tqdm(total=buffer_size, desc="Filling the replay buffer")
+    # progress_bar = tqdm.tqdm(total=buffer_size, desc="Filling the replay buffer")
     for _ in range(buffer_size):
         action = agent.act(state)
         next_state, reward, done, trunc, _ = env.step(action)
@@ -262,8 +262,8 @@ def fill_buffer(env, agent, buffer_size):
             state, _ = env.reset()
         else:
             state = next_state
-        progress_bar.update(1)
-    progress_bar.close()
+        # progress_bar.update(1)
+    # progress_bar.close()
 
 if __name__ == "__main__":
     # Set the seed

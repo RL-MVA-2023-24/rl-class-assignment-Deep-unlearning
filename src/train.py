@@ -7,7 +7,7 @@ import random
 import numpy as np
 from copy import deepcopy
 import os
-from evaluate import evaluate_HIV, evaluate_HIV_population
+from evaluate import evaluate_HIV
 
 env = TimeLimit(
     env=HIVPatient(domain_randomization=True), max_episode_steps=200

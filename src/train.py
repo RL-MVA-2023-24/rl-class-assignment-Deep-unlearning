@@ -271,7 +271,7 @@ class ProjectAgent:
         pass
 
     def load(self):
-        path = os.getcwd() + "/dqn_agent.pth"
+        path = os.getcwd() + "/src/dqn_agent.pth"
         self.dqn_agent.load(path)
 
 def fill_buffer(env, agent, buffer_size):

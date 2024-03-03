@@ -150,7 +150,7 @@ class DQN_Agent:
         step = 0
         best_return = 0
         best_score_agent = 0
-        best_score_agent_dr = 0
+        # best_score_agent_dr = 0
         while episode < max_episode:
             # update epsilon
             if step > self.epsilon_delay:
@@ -187,30 +187,28 @@ class DQN_Agent:
                 MC_dr, MC_tr = self.MC_eval(env, self.monitoring_nb_trials)    # NEW NEW NEW
                 V0 = self.V_initial_state(env, self.monitoring_nb_trials)   # NEW NEW NEW
                 MC_avg_total_reward.append(MC_tr)   # NEW NEW NEW
-                # MC_avg_discounted_reward.append(MC_dr)   # NEW NEW NEW
+                MC_avg_discounted_reward.append(MC_dr)   # NEW NEW NEW
                 V_init_state.append(V0)   # NEW NEW NEW
                 episode_return.append(episode_cum_reward)   # NEW NEW NEW
-                score_agent = evaluate_HIV(agent=self, nb_episode=1)
-                # score_agent_dr = evaluate_HIV_population(agent=self, nb_episode=15)
+                #score_agent = evaluate_HIV(agent=self, nb_episode=1)
+                #score_agent_dr = evaluate_HIV_population(agent=self, nb_episode=15)
                 print("Episode ", '{:2d}'.format(episode), 
                         ", epsilon ", '{:6.4f}'.format(epsilon), 
                         ", memory size ", '{:4d}'.format(len(self.memory)), 
-                        ", score agent ", '{:6.2f}'.format(score_agent),
-                        # ", score agent dr ", '{:6.2f}'.format(score_agent_dr),
-                        # ", ep return ", '{:6.0f}'.format(episode_cum_reward), 
-                        # ", MC tot ", '{:6.0f}'.format(MC_tr),
-                        # ", MC disc ", '{:6.0f}'.format(MC_dr),
-                        # ", V0 ", '{:6.0f}'.format(V0),
+                        #", score agent ", '{:6.2f}'.format(score_agent),
+                        #", score agent dr ", '{:6.2f}'.format(score_agent_dr),
+                        ", ep return ", '{:6.0f}'.format(episode_cum_reward), 
+                        ", MC tot ", '{:6.0f}'.format(MC_tr),
+                        ", MC disc ", '{:6.0f}'.format(MC_dr),
+                        ", V0 ", '{:6.0f}'.format(V0),
                         sep='')
                 # Save if the score_agent is better
-                if score_agent > best_score_agent:
-                    # Run main.py to evaluate the agent
-                    exec(open("main.py").read())
-
+                if MC_tr > best_return:
+                    score_agent = evaluate_HIV(agent=self, nb_episode=1)
                     best_score_agent = score_agent
+                    best_return = MC_tr
                     self.save(self.save_path)
-                    print("Best agent saved", 
-                          " score agent ", '{:6.2f}'.format(score_agent), sep='')
+                    print("Best agent saved, total reward: ", best_return, " score: ", best_score_agent)
                 # else:
                 #     episode_return.append(episode_cum_reward)
                 #     print("Episode ", '{:2d}'.format(episode), 
@@ -271,7 +269,7 @@ class ProjectAgent:
         pass
 
     def load(self):
-        path = os.getcwd() + "/src/dqn_agent.pth"
+        path = os.getcwd() + "/dqn_agent.pth"
         self.dqn_agent.load(path)
 
 def fill_buffer(env, agent, buffer_size):

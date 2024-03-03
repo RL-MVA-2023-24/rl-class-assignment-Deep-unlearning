@@ -45,11 +45,11 @@ def greedy_action(network, state):
 class MLP(torch.nn.Module):
     def __init__(self, state_dim, nb_actions):
         super(MLP, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, 128)
-        self.fc4 = nn.Linear(128, 128)
-        self.fc5 = nn.Linear(128, nb_actions)
+        self.fc1 = nn.Linear(state_dim, 1024)
+        self.fc2 = nn.Linear(1024, 1024)
+        self.fc3 = nn.Linear(1024, 1024)
+        self.fc4 = nn.Linear(1024, 1024)
+        self.fc5 = nn.Linear(1024, nb_actions)
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x)) + x

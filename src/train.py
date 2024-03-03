@@ -55,8 +55,9 @@ class MLP(nn.Module):
         self.fc3 = nn.Linear(hidden_dim, hidden_dim)
         self.fc4 = nn.Linear(hidden_dim, hidden_dim)
         self.fc5 = nn.Linear(hidden_dim, hidden_dim)
+
         self.dropout = nn.Dropout(p=0.05)  # Adjust dropout rate as needed
-        self.activation = nn.ReLU()
+        self.activation = nn.SiLU()
         self.fc6 = nn.Linear(hidden_dim, nb_actions)
 
     def forward(self, x):
@@ -203,6 +204,9 @@ class DQN_Agent:
                         sep='')
                 # Save if the score_agent is better
                 if score_agent > best_score_agent:
+                    # Run main.py to evaluate the agent
+                    exec(open("main.py").read())
+
                     best_score_agent = score_agent
                     self.save(self.save_path)
                     print("Best agent saved", 
@@ -235,7 +239,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 state_dim = env.observation_space.shape[0]
 nb_actions = env.action_space.n
 
-model = MLP(state_dim, 512, nb_actions).to(device)
+model = MLP(state_dim, 1024, nb_actions).to(device)
 
 config = {'nb_actions': nb_actions,
         'learning_rate': 0.001,
@@ -244,7 +248,7 @@ config = {'nb_actions': nb_actions,
         'epsilon_min': 0.01,
         'epsilon_max': 1.,
         'epsilon_decay_period': 10000,
-        'epsilon_delay_decay': 500,
+        'epsilon_delay_decay': 5000,
         'batch_size': 512,
         'gradient_steps': 2,
         'update_target_strategy': 'ema', # or 'replace'
@@ -267,7 +271,7 @@ class ProjectAgent:
         pass
 
     def load(self):
-        path = os.getcwd() + "/src/dqn_agent.pth"
+        path = os.getcwd() + "/dqn_agent.pth"
         self.dqn_agent.load(path)
 
 def fill_buffer(env, agent, buffer_size):
@@ -284,12 +288,21 @@ def fill_buffer(env, agent, buffer_size):
         # progress_bar.update(1)
     # progress_bar.close()
 
-if __name__ == "__main__":
-    # Set the seed
-    seed = 42
+
+def seed_everything(seed: int = 42):
     random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.cuda.manual_seed_all(seed)
+
+if __name__ == "__main__":
+    # Set the seed
+    seed_everything(seed=42)
+
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     #env.seed(seed)

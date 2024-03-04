@@ -83,7 +83,6 @@ class DQN_Agent:
         self.monitoring_nb_trials = config['monitoring_nb_trials'] if 'monitoring_nb_trials' in config.keys() else 0
         self.monitor_every = config['monitor_every'] if 'monitor_every' in config.keys() else 10
         self.save_path = config['save_path'] if 'save_path' in config.keys() else './agent.pth'
-        self.save_every = config['save_every'] if 'save_every' in config.keys() else 100
 
     def MC_eval(self, env, nb_trials):   # NEW NEW NEW
         MC_total_reward = []
@@ -233,8 +232,7 @@ config = {'nb_actions': nb_actions,
         'criterion': torch.nn.SmoothL1Loss(),
         'monitoring_nb_trials': 50, 
         'monitor_every': 50, 
-        'save_path': './dqn_agent.pth',
-        'save_every': 50}
+        'save_path': './dqn_agent.pth'}
 
 agent = DQN_Agent(config, model)
 
@@ -253,7 +251,6 @@ class ProjectAgent:
 
 def fill_buffer(env, agent, buffer_size):
     state, _ = env.reset()
-    # progress_bar = tqdm.tqdm(total=buffer_size, desc="Filling the replay buffer")
     for _ in range(buffer_size):
         action = agent.act(state)
         next_state, reward, done, trunc, _ = env.step(action)
@@ -262,8 +259,6 @@ def fill_buffer(env, agent, buffer_size):
             state, _ = env.reset()
         else:
             state = next_state
-        # progress_bar.update(1)
-    # progress_bar.close()
 
 if __name__ == "__main__":
     # Set the seed
